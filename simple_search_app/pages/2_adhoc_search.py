@@ -22,6 +22,11 @@ def get_snowflake_session():
 
 session = get_snowflake_session()
 
+# =========================================================
+# 定数定義: デモデータのスキーマ
+# =========================================================
+DEMO_DATA_SCHEMA = "bank_db.bank_schema"
+
 def quote_identifier(identifier: str) -> str:
     """Snowflake識別子をクォートする"""
     return f'"{identifier}"'
@@ -67,7 +72,7 @@ if 'active_tab' not in st.session_state:
 
 def get_available_tables():
     try:
-        result = session.sql("SHOW TABLES").collect()
+        result = session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()
         return [row['name'] for row in result]
     except:
         return []
@@ -75,7 +80,7 @@ def get_available_tables():
 def get_table_columns(table_name: str):
     try:
         quoted_table = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {quoted_table}").collect()
+        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table}").collect()
         return [{'name': row['name'], 'type': row['type']} for row in result]
     except:
         return []
@@ -151,7 +156,7 @@ def get_table_descriptions_with_ai(table_name: str):
     # CORTEX.COMPLETEで代替実装
     try:
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        describe_result = session.sql(f"DESCRIBE TABLE {quoted_table_name}").collect()
+        describe_result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
         
         if not describe_result:
             return None
@@ -194,7 +199,7 @@ def get_table_columns_with_descriptions_cached(table_name: str):
     """テーブル/ビューのカラム名、データ型、AI生成説明を取得（10分キャッシュ）"""
     try:
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {quoted_table_name}").collect()
+        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
         columns_with_desc = []
         
         ai_descriptions = get_table_descriptions_with_ai(table_name)
@@ -208,7 +213,7 @@ def get_table_columns_with_descriptions_cached(table_name: str):
             # サンプル値を取得
             sample_text = ""
             try:
-                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
+                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {DEMO_DATA_SCHEMA}.{quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
                 sample_result = session.sql(sample_query).collect()
                 
                 if sample_result:
@@ -239,13 +244,13 @@ def get_table_columns_with_descriptions_cached(table_name: str):
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_available_relations():
-    """同一スキーマ内のテーブルとビュー名を取得（5分キャッシュ）"""
+    """bank_dbスキーマ内のテーブルとビュー名を取得（5分キャッシュ）"""
     try:
-        tables = [row['name'] for row in session.sql("SHOW TABLES").collect()]
+        tables = [row['name'] for row in session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()]
     except:
         tables = []
     try:
-        views = [row['name'] for row in session.sql("SHOW VIEWS").collect()]
+        views = [row['name'] for row in session.sql(f"SHOW VIEWS IN {DEMO_DATA_SCHEMA}").collect()]
     except:
         views = []
     labeled = [f"[TABLE] {t}" for t in tables] + [f"[VIEW] {v}" for v in views]

@@ -4,6 +4,7 @@
 # =========================================================
 # Created by kdaigo
 # 最終更新: 2025/09/24
+# 修正: スキーマを明示的に指定してテーブル一覧を取得
 # =========================================================
 
 import streamlit as st
@@ -28,6 +29,11 @@ def get_snowflake_session():
     return get_active_session()
 
 session = get_snowflake_session()
+
+# =========================================================
+# 定数定義: デモデータのスキーマ
+# =========================================================
+DEMO_DATA_SCHEMA = "bank_db.bank_schema"
 
 # =========================================================
 # セッション状態の初期化
@@ -126,18 +132,18 @@ def add_to_favorites(object_id: str):
 # =========================================================
 @st.cache_data(ttl=300, show_spinner=False)
 def get_available_relations():
-    """同一スキーマ内のテーブルとビュー名を取得（5分キャッシュ）"""
+    """bank_dbスキーマ内のテーブルとビュー名を取得（5分キャッシュ）"""
     try:
-        # テーブル一覧を取得
-        table_result = session.sql("SHOW TABLES").collect()
+        # 明示的にbank_db.bank_schemaを指定
+        table_result = session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()
         tables = [row['name'] for row in table_result]
     except Exception as e:
         st.error(f"テーブル取得エラー: {str(e)}")
         tables = []
     
     try:
-        # ビュー一覧を取得
-        view_result = session.sql("SHOW VIEWS").collect()
+        # 明示的にbank_db.bank_schemaを指定
+        view_result = session.sql(f"SHOW VIEWS IN {DEMO_DATA_SCHEMA}").collect()
         views = [row['name'] for row in view_result]
     except Exception as e:
         st.error(f"ビュー取得エラー: {str(e)}")
@@ -152,7 +158,8 @@ def get_table_columns_with_types_cached(table_name: str):
     try:
         # 日本語テーブル名に対応するためダブルクォーテーションで囲む
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {quoted_table_name}").collect()
+        # 明示的にスキーマを指定
+        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
         return [{'name': row['name'], 'type': row['type']} for row in result]
     except Exception as e:
         st.error(f"テーブル情報取得エラー ({table_name}): {str(e)}")
@@ -166,9 +173,9 @@ def get_table_descriptions_with_ai(table_name: str):
     try:
         # 複数の構文パターンを試行
         patterns_to_try = [
-            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC('{table_name}')",
-            f'SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC("{table_name}")',
-            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC({table_name})"
+            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC('{DEMO_DATA_SCHEMA}.{table_name}')",
+            f'SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC("{DEMO_DATA_SCHEMA}.{table_name}")',
+            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC({DEMO_DATA_SCHEMA}.{table_name})"
         ]
         
         for pattern in patterns_to_try:
@@ -191,7 +198,7 @@ def get_table_descriptions_with_ai(table_name: str):
     try:
         # テーブル構造を取得
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        describe_result = session.sql(f"DESCRIBE TABLE {quoted_table_name}").collect()
+        describe_result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
         
         if not describe_result:
             return None
@@ -240,7 +247,7 @@ def get_table_columns_with_descriptions_cached(table_name: str):
     try:
         # 日本語テーブル名に対応するためダブルクォーテーションで囲む
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {quoted_table_name}").collect()
+        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
         columns_with_desc = []
         
         # まずAI_GENERATE_TABLE_DESCを試行
@@ -257,7 +264,7 @@ def get_table_columns_with_descriptions_cached(table_name: str):
             sample_text = ""
             try:
                 # サンプルデータを取得（NULL以外の重複なし値を3件）
-                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
+                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {DEMO_DATA_SCHEMA}.{quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
                 sample_result = session.sql(sample_query).collect()
                 
                 if sample_result:
@@ -726,9 +733,9 @@ with colA:
         else:
             select_clause = "*"
         
-        # テーブル名もクォート
+        # テーブル名もクォート（スキーマを含む完全修飾名を使用）
         quoted_table = quote_identifier(selected_table)
-        generated_query = f"SELECT {select_clause} FROM {quoted_table}{where_clause}{order_by_clause}"
+        generated_query = f"SELECT {select_clause} FROM {DEMO_DATA_SCHEMA}.{quoted_table}{where_clause}{order_by_clause}"
 
         object_data = {
             'object_id': f"obj_{uuid.uuid4().hex[:12]}",
@@ -796,9 +803,9 @@ with colB:
         else:
             select_clause = "*"
         
-        # テーブル名もクォート
+        # テーブル名もクォート（スキーマを含む完全修飾名を使用）
         quoted_table = quote_identifier(selected_table)
-        generated_query = f"SELECT {select_clause} FROM {quoted_table}{where_clause}{order_by_clause}"
+        generated_query = f"SELECT {select_clause} FROM {DEMO_DATA_SCHEMA}.{quoted_table}{where_clause}{order_by_clause}"
         st.code(generated_query, language="sql")
         
         # ソート条件がある場合は追加情報を表示
@@ -894,8 +901,8 @@ with tab1:
                                 if add_to_favorites(obj['OBJECT_ID']):
                                     st.success("お気に入りに追加しました！")
                                     st.rerun()
-        else:
-            st.info("定型検索オブジェクトがありません。新規作成してください。")
+    else:
+        st.info("定型検索オブジェクトがありません。新規作成してください。")
 
 
 with tab3:
