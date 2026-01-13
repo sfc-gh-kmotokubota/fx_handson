@@ -224,13 +224,16 @@ def get_table_columns_with_types_cached(table_name: str):
 def get_table_descriptions_with_ai(table_name: str):
     """AI機能を使ってテーブル・カラム説明を生成（10分キャッシュ）"""
     
+    # テーブルのスキーマを動的に判定
+    schema = get_table_schema(table_name)
+    
     # まずAI_GENERATE_TABLE_DESCを試行
     try:
         # 複数の構文パターンを試行
         patterns_to_try = [
-            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC('{DEMO_DATA_SCHEMA}.{table_name}')",
-            f'SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC("{DEMO_DATA_SCHEMA}.{table_name}")',
-            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC({DEMO_DATA_SCHEMA}.{table_name})"
+            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC('{schema}.{table_name}')",
+            f'SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC("{schema}.{table_name}")',
+            f"SELECT SNOWFLAKE.CORTEX.AI_GENERATE_TABLE_DESC({schema}.{table_name})"
         ]
         
         for pattern in patterns_to_try:
@@ -808,7 +811,8 @@ with colA:
         
         # テーブル名もクォート（スキーマを含む完全修飾名を使用）
         quoted_table = quote_identifier(selected_table)
-        generated_query = f"SELECT {select_clause} FROM {DEMO_DATA_SCHEMA}.{quoted_table}{where_clause}{order_by_clause}"
+        table_schema = get_table_schema(selected_table)
+        generated_query = f"SELECT {select_clause} FROM {table_schema}.{quoted_table}{where_clause}{order_by_clause}"
 
         object_data = {
             'object_id': f"obj_{uuid.uuid4().hex[:12]}",
@@ -878,7 +882,8 @@ with colB:
         
         # テーブル名もクォート（スキーマを含む完全修飾名を使用）
         quoted_table = quote_identifier(selected_table)
-        generated_query = f"SELECT {select_clause} FROM {DEMO_DATA_SCHEMA}.{quoted_table}{where_clause}{order_by_clause}"
+        table_schema = get_table_schema(selected_table)
+        generated_query = f"SELECT {select_clause} FROM {table_schema}.{quoted_table}{where_clause}{order_by_clause}"
         st.code(generated_query, language="sql")
         
         # ソート条件がある場合は追加情報を表示
