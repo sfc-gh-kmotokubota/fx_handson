@@ -198,28 +198,26 @@ def render_home_page():
     with col2:
         with st.container():
             st.markdown("""
-            <div style="border: 2px solid #ccc; border-radius: 10px; padding: 1.5rem; text-align: center; background-color: #f5f5f5; opacity: 0.6;">
+            <div style="border: 2px solid #4ecdc4; border-radius: 10px; padding: 1.5rem; text-align: center; background-color: #f0fffe;">
                 <h3>📊 非定型検索</h3>
                 <p>自由な条件で<br>データ検索</p>
                 <p style="color: #666; font-size: 0.9em;">テーブルやカラムを選んで<br>カスタム検索</p>
-                <span style="background-color: #ffa500; color: white; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.8em;">準備中</span>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("非定型検索を開く", key="main_adhoc", use_container_width=True, disabled=True):
-                st.info("📋 この機能は現在準備中です")
+            if st.button("非定型検索を開く", key="main_adhoc", use_container_width=True, type="primary"):
+                safe_switch_page("pages/2_adhoc_search.py")
     
     with col3:
         with st.container():
             st.markdown("""
-            <div style="border: 2px solid #ccc; border-radius: 10px; padding: 1.5rem; text-align: center; background-color: #f5f5f5; opacity: 0.6;">
+            <div style="border: 2px solid #45b7d1; border-radius: 10px; padding: 1.5rem; text-align: center; background-color: #f0f9ff;">
                 <h3>🗣️ 自然言語検索 </h3>
                 <p>チャット形式でのデータ集計・<br>高度なAIアシスタント</p>
                 <p style="color: #666; font-size: 0.9em;">自然言語での<br>分析と可視化</p>
-                <span style="background-color: #ffa500; color: white; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.8em;">準備中</span>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("Cortex Analystを開く", key="main_cortex", use_container_width=True, disabled=True):
-                st.info("📋 この機能は現在準備中です")
+            if st.button("Cortex Analystを開く", key="main_cortex", use_container_width=True, type="primary"):
+                safe_switch_page("pages/3_cortex_analyst.py")
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -233,39 +231,46 @@ def render_home_page():
     with col4:
         with st.container():
             st.markdown("""
-            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center; background-color: #f5f5f5; opacity: 0.6;">
+            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center;">
                 <h4>📥 データ取込</h4>
                 <p style="font-size: 0.9em;">外部データの取り込み</p>
-                <span style="background-color: #ffa500; color: white; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.75em;">準備中</span>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("データ取込を開く", key="main_ingest", use_container_width=True, disabled=True):
-                st.info("📋 この機能は現在準備中です")
+            if st.button("データ取込を開く", key="main_ingest", use_container_width=True):
+                safe_switch_page("pages/4_ingest.py")
     
     with col5:
         with st.container():
             st.markdown("""
-            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center; background-color: #f5f5f5; opacity: 0.6;">
+            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center;">
                 <h4>🔧 保守・運用</h4>
                 <p style="font-size: 0.9em;">システム管理機能</p>
-                <span style="background-color: #ffa500; color: white; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.75em;">準備中</span>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("保守・運用を開く", key="main_admin", use_container_width=True, disabled=True):
-                st.info("📋 この機能は現在準備中です")
+            if st.button("保守・運用を開く", key="main_admin", use_container_width=True):
+                safe_switch_page("pages/5_admin.py")
     
     with col6:
         with st.container():
             st.markdown("""
-            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center; background-color: #f5f5f5; opacity: 0.6;">
+            <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center;">
                 <h4>📋 追加機能</h4>
                 <p style="font-size: 0.9em;">RAGやデータカタログ機能など自由に開発できます</p>
-                <span style="background-color: #999; color: white; padding: 0.2rem 0.5rem; border-radius: 5px; font-size: 0.75em;">将来追加予定</span>
             </div>
             """, unsafe_allow_html=True)
-            st.caption("🔧 お客様自身で自由にカスタマイズ可能です")
+            st.info("🔧 お客様自身で自由にカスタマイズ可能です")
             
-
+    # with col7:
+    #     with st.container():
+    #         st.markdown("""
+    #         <div style="border: 1px solid #ddd; border-radius: 8px; padding: 1rem; text-align: center;">
+    #             <h4>🔐 個人情報参照承認</h4>
+    #             <p style="font-size: 0.9em;">個人情報アクセス申請</p>
+    #         </div>
+    #         """, unsafe_allow_html=True)
+    #         if st.button("承認申請", key="main_personal_info", use_container_width=True):
+    #             safe_switch_page("pages/6_personal_info_approval.py")
+    
     st.markdown("<br>", unsafe_allow_html=True)
     
     # 3. お知らせセクション
@@ -301,22 +306,22 @@ def render_sidebar():
     if st.sidebar.button("🔍 定型検索", use_container_width=True):
         safe_switch_page("pages/1_standard_search.py")
     
-    if st.sidebar.button("📊 非定型検索（準備中）", use_container_width=True, disabled=True):
-        st.info("📋 この機能は現在準備中です")
+    if st.sidebar.button("📊 非定型検索", use_container_width=True):
+        safe_switch_page("pages/2_adhoc_search.py")
     
-    if st.sidebar.button("🗣️ 自然言語検索（準備中）", use_container_width=True, disabled=True):
-        st.info("📋 この機能は現在準備中です")
+    if st.sidebar.button("🗣️ 自然言語検索", use_container_width=True):
+        safe_switch_page("pages/3_cortex_analyst.py")
     
     st.sidebar.markdown("---")
     
     # その他の機能
     st.sidebar.markdown("### ⚙️ その他")
     
-    if st.sidebar.button("📥 データ取込（準備中）", use_container_width=True, disabled=True):
-        st.info("📋 この機能は現在準備中です")
+    if st.sidebar.button("📥 データ取込", use_container_width=True):
+        safe_switch_page("pages/4_ingest.py")
     
-    if st.sidebar.button("🔧 保守・運用（準備中）", use_container_width=True, disabled=True):
-        st.info("📋 この機能は現在準備中です")
+    if st.sidebar.button("🔧 保守・運用", use_container_width=True):
+        safe_switch_page("pages/5_admin.py")
     
 #    if st.sidebar.button("🔐 個人情報参照承認", use_container_width=True):
 #        safe_switch_page("pages/6_personal_info_approval.py")
