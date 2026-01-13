@@ -303,3 +303,134 @@ CREATE OR REPLACE STREAMLIT simple_search_app
     FROM @GIT_INTEGRATION_FOR_HANDSON/branches/main/simple_search_app
     MAIN_FILE = 'streamlit_app.py'
     QUERY_WAREHOUSE = COMPUTE_WH;
+
+-- ========================================
+-- 5.セマンティックビュー作成
+-- ========================================
+USE DATABASE application_db;
+CREATE OR REPLACE SCHEMA application_db.semantic_view_schema;
+
+CREATE OR REPLACE SEMANTIC VIEW application_db.semantic_view_schema.BANK_SEMANTIC_VIEW
+
+  TABLES (
+    customers AS BANK_DB.BANK_SCHEMA.CUSTOMER
+      PRIMARY KEY (CUSTOMER_ID)
+      WITH SYNONYMS = ('顧客', 'お客様', 'ユーザー')
+      COMMENT = '銀行の顧客マスタテーブル。顧客の基本情報、セグメント、口座状態を管理',
+    transactions AS BANK_DB.BANK_SCHEMA.TRANSACTION
+      PRIMARY KEY (TRANSACTION_ID)
+      WITH SYNONYMS = ('取引', 'トランザクション', '取引履歴')
+      COMMENT = '取引履歴テーブル。入金、出金、振込、定期預金、投資信託などの取引を記録'
+  )
+
+  RELATIONSHIPS (
+    transactions_to_customers AS
+      transactions (CUSTOMER_ID) REFERENCES customers (CUSTOMER_ID)
+  )
+
+  FACTS (
+    customers.age AS AGE
+      COMMENT = '顧客の年齢',
+    transactions.amount AS AMOUNT
+      WITH SYNONYMS = ('金額', '取引金額')
+      COMMENT = '取引金額',
+    transactions.balance_after AS BALANCE_AFTER
+      WITH SYNONYMS = ('残高', '取引後残高')
+      COMMENT = '取引後残高',
+    transactions.deposit_amount AS CASE WHEN TRANSACTION_TYPE = '入金' THEN AMOUNT ELSE 0 END
+      COMMENT = '入金金額',
+    transactions.withdrawal_amount AS CASE WHEN TRANSACTION_TYPE = '出金' THEN AMOUNT ELSE 0 END
+      COMMENT = '出金金額',
+    transactions.transfer_amount AS CASE WHEN TRANSACTION_TYPE = '振込' THEN AMOUNT ELSE 0 END
+      COMMENT = '振込金額',
+    transactions.investment_amount AS CASE WHEN TRANSACTION_TYPE = '投資信託' THEN AMOUNT ELSE 0 END
+      COMMENT = '投資信託金額',
+    transactions.time_deposit_amount AS CASE WHEN TRANSACTION_TYPE = '定期預金' THEN AMOUNT ELSE 0 END
+      COMMENT = '定期預金金額'
+  )
+
+  DIMENSIONS (
+    customers.customer_id AS CUSTOMER_ID
+      WITH SYNONYMS = ('顧客ID', '顧客番号')
+      COMMENT = '顧客の一意識別子',
+    customers.customer_name AS CUSTOMER_NAME
+      WITH SYNONYMS = ('顧客名', '氏名', '名前')
+      COMMENT = '顧客の氏名',
+    customers.customer_name_kana AS CUSTOMER_NAME_KANA
+      WITH SYNONYMS = ('カナ', 'フリガナ')
+      COMMENT = '顧客の氏名（カナ）',
+    customers.gender AS GENDER
+      WITH SYNONYMS = ('性別')
+      COMMENT = '性別（男性/女性）',
+    customers.prefecture AS PREFECTURE
+      WITH SYNONYMS = ('都道府県', '地域')
+      COMMENT = '都道府県',
+    customers.city AS CITY
+      WITH SYNONYMS = ('市区町村', '市')
+      COMMENT = '市区町村',
+    customers.customer_segment AS CUSTOMER_SEGMENT
+      WITH SYNONYMS = ('顧客セグメント', 'セグメント', '顧客区分')
+      COMMENT = '顧客セグメント（プレミアム/スタンダード/新規）',
+    customers.account_status AS ACCOUNT_STATUS
+      WITH SYNONYMS = ('口座状態', 'ステータス')
+      COMMENT = '口座状態（アクティブ/休眠/解約）',
+    customers.registration_date AS REGISTRATION_DATE
+      WITH SYNONYMS = ('登録日', '口座開設日')
+      COMMENT = '口座開設日・登録日',
+    transactions.transaction_id AS TRANSACTION_ID
+      WITH SYNONYMS = ('取引ID', '取引番号')
+      COMMENT = '取引の一意識別子',
+    transactions.transaction_date AS TRANSACTION_DATE
+      WITH SYNONYMS = ('取引日', '日付')
+      COMMENT = '取引日',
+    transactions.transaction_type AS TRANSACTION_TYPE
+      WITH SYNONYMS = ('取引種別', '取引タイプ')
+      COMMENT = '取引種別（入金/出金/振込/定期預金/投資信託）',
+    transactions.channel AS CHANNEL
+      WITH SYNONYMS = ('チャネル', '取引チャネル')
+      COMMENT = '取引チャネル（Web/モバイルアプリ/ATM/コールセンター）',
+    transactions.branch_code AS BRANCH_CODE
+      WITH SYNONYMS = ('支店コード', '支店')
+      COMMENT = '支店コード',
+    transactions.memo AS MEMO
+      WITH SYNONYMS = ('メモ', '摘要')
+      COMMENT = '取引メモ・摘要',
+    transactions.transaction_month AS DATE_TRUNC('MONTH', TRANSACTION_DATE)
+      WITH SYNONYMS = ('取引月', '月')
+      COMMENT = '取引月'
+  )
+
+  METRICS (
+    customers.total_customers AS COUNT(DISTINCT customers.CUSTOMER_ID)
+      WITH SYNONYMS = ('顧客数', '顧客総数')
+      COMMENT = '総顧客数',
+    customers.average_age AS AVG(customers.age)
+      WITH SYNONYMS = ('平均年齢')
+      COMMENT = '平均年齢',
+    transactions.total_amount AS SUM(transactions.amount)
+      WITH SYNONYMS = ('取引金額合計', '合計金額')
+      COMMENT = '総取引金額',
+    transactions.average_amount AS AVG(transactions.amount)
+      WITH SYNONYMS = ('平均金額', '平均取引額')
+      COMMENT = '平均取引金額',
+    transactions.transaction_count AS COUNT(transactions.TRANSACTION_ID)
+      WITH SYNONYMS = ('取引数', '件数')
+      COMMENT = '取引件数',
+    transactions.total_deposits AS SUM(transactions.deposit_amount)
+      WITH SYNONYMS = ('入金額', '入金合計')
+      COMMENT = '入金合計',
+    transactions.total_withdrawals AS SUM(transactions.withdrawal_amount)
+      WITH SYNONYMS = ('出金額', '出金合計')
+      COMMENT = '出金合計',
+    transactions.total_transfers AS SUM(transactions.transfer_amount)
+      WITH SYNONYMS = ('振込額', '振込合計')
+      COMMENT = '振込合計',
+    transactions.total_investments AS SUM(transactions.investment_amount)
+      WITH SYNONYMS = ('投資額', '投資信託合計')
+      COMMENT = '投資信託購入合計',
+    transactions.total_time_deposits AS SUM(transactions.time_deposit_amount)
+      WITH SYNONYMS = ('定期預金額')
+      COMMENT = '定期預金合計'
+  )
+
+  COMMENT = 'ネット銀行の顧客・取引分析用セマンティックビュー';
