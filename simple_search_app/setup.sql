@@ -436,7 +436,7 @@ CREATE OR REPLACE SEMANTIC VIEW application_db.semantic_view_schema.BANK_SEMANTI
       WITH SYNONYMS = ('取引数', '件数')
       COMMENT = '取引件数',
     transactions.total_deposits AS SUM(transactions.deposit_amount)
-      WITH SYNONYMSあ = ('入金額', '入金合計')
+      WITH SYNONYMS = ('入金額', '入金合計')
       COMMENT = '入金合計',
     transactions.total_withdrawals AS SUM(transactions.withdrawal_amount)
       WITH SYNONYMS = ('出金額', '出金合計')
