@@ -1,8 +1,8 @@
 -- ========================================
 -- 1.環境構築
 -- ========================================
-create database application_db;
-create schema application_db.application_schema;
+create or replace database application_db;
+create or replace schema application_db.application_schema;
 use schema application_db.application_schema;
 
 -- ========================================
