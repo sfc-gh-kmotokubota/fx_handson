@@ -37,6 +37,8 @@ DEMO_DATA_SCHEMA = "bank_db.bank_schema"
 APP_DATA_SCHEMA = "application_db.application_schema"
 # 検索対象から除外するシステムテーブル
 SYSTEM_TABLES = {"STANDARD_SEARCH_OBJECTS", "ANNOUNCEMENTS"}
+# 検索対象から除外するテーブル名のプレフィックス
+EXCLUDED_PREFIXES = ("SNOWPARK_TEMP_TABLE_",)
 
 # =========================================================
 # セッション状態の初期化
@@ -152,6 +154,14 @@ def get_table_schema(table_name: str) -> str:
         pass
     return DEMO_DATA_SCHEMA  # デフォルト
 
+def is_excluded_table(table_name: str) -> bool:
+    """除外対象のテーブルかどうかを判定"""
+    if table_name in SYSTEM_TABLES:
+        return True
+    if table_name.upper().startswith(EXCLUDED_PREFIXES):
+        return True
+    return False
+
 def get_available_relations():
     """複数スキーマからテーブルとビュー名を取得（5分キャッシュ）"""
     tables = []
@@ -160,7 +170,10 @@ def get_available_relations():
     # bank_db.bank_schemaからテーブル/ビューを取得
     try:
         table_result = session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()
-        tables.extend([row['name'] for row in table_result])
+        for row in table_result:
+            table_name = row['name']
+            if not is_excluded_table(table_name):
+                tables.append(table_name)
     except Exception as e:
         st.error(f"デモデータテーブル取得エラー: {str(e)}")
     
@@ -170,13 +183,12 @@ def get_available_relations():
     except:
         pass
     
-    # application_db.application_schemaからテーブル/ビューを取得（システムテーブルを除外）
+    # application_db.application_schemaからテーブル/ビューを取得
     try:
         app_table_result = session.sql(f"SHOW TABLES IN {APP_DATA_SCHEMA}").collect()
         for row in app_table_result:
             table_name = row['name']
-            # システムテーブルは除外
-            if table_name not in SYSTEM_TABLES:
+            if not is_excluded_table(table_name):
                 tables.append(table_name)
     except:
         pass
