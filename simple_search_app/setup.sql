@@ -66,8 +66,8 @@ VALUES
 -- ========================================
 
 --データベース作成 
-create database bank_db ;
-create schema bank_db.bank_schema;
+create or replace database bank_db ;
+create or replace schema bank_db.bank_schema;
 use schema bank_db.bank_schema; 
 
 -- 顧客テーブル
