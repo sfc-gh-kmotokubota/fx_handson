@@ -31,9 +31,12 @@ def get_snowflake_session():
 session = get_snowflake_session()
 
 # =========================================================
-# 定数定義: デモデータのスキーマ
+# 定数定義: データスキーマ
 # =========================================================
 DEMO_DATA_SCHEMA = "bank_db.bank_schema"
+APP_DATA_SCHEMA = "application_db.application_schema"
+# 検索対象から除外するシステムテーブル
+SYSTEM_TABLES = {"STANDARD_SEARCH_OBJECTS", "ANNOUNCEMENTS"}
 
 # =========================================================
 # セッション状態の初期化
@@ -131,23 +134,62 @@ def add_to_favorites(object_id: str):
 # ユーティリティ関数（キャッシュ対応）
 # =========================================================
 @st.cache_data(ttl=300, show_spinner=False)
-def get_available_relations():
-    """bank_dbスキーマ内のテーブルとビュー名を取得（5分キャッシュ）"""
+def get_table_schema(table_name: str) -> str:
+    """テーブルがどのスキーマに存在するかを判定して返す"""
+    # まずbank_db.bank_schemaを確認
     try:
-        # 明示的にbank_db.bank_schemaを指定
+        quoted_table = f'"{table_name}"' if not table_name.startswith('"') else table_name
+        session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table}").collect()
+        return DEMO_DATA_SCHEMA
+    except:
+        pass
+    # 次にapplication_db.application_schemaを確認
+    try:
+        quoted_table = f'"{table_name}"' if not table_name.startswith('"') else table_name
+        session.sql(f"DESCRIBE TABLE {APP_DATA_SCHEMA}.{quoted_table}").collect()
+        return APP_DATA_SCHEMA
+    except:
+        pass
+    return DEMO_DATA_SCHEMA  # デフォルト
+
+def get_available_relations():
+    """複数スキーマからテーブルとビュー名を取得（5分キャッシュ）"""
+    tables = []
+    views = []
+    
+    # bank_db.bank_schemaからテーブル/ビューを取得
+    try:
         table_result = session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()
-        tables = [row['name'] for row in table_result]
+        tables.extend([row['name'] for row in table_result])
     except Exception as e:
-        st.error(f"テーブル取得エラー: {str(e)}")
-        tables = []
+        st.error(f"デモデータテーブル取得エラー: {str(e)}")
     
     try:
-        # 明示的にbank_db.bank_schemaを指定
         view_result = session.sql(f"SHOW VIEWS IN {DEMO_DATA_SCHEMA}").collect()
-        views = [row['name'] for row in view_result]
-    except Exception as e:
-        st.error(f"ビュー取得エラー: {str(e)}")
-        views = []
+        views.extend([row['name'] for row in view_result])
+    except:
+        pass
+    
+    # application_db.application_schemaからテーブル/ビューを取得（システムテーブルを除外）
+    try:
+        app_table_result = session.sql(f"SHOW TABLES IN {APP_DATA_SCHEMA}").collect()
+        for row in app_table_result:
+            table_name = row['name']
+            # システムテーブルは除外
+            if table_name not in SYSTEM_TABLES:
+                tables.append(table_name)
+    except:
+        pass
+    
+    try:
+        app_view_result = session.sql(f"SHOW VIEWS IN {APP_DATA_SCHEMA}").collect()
+        views.extend([row['name'] for row in app_view_result])
+    except:
+        pass
+    
+    # 重複を除去してラベル付け
+    tables = list(set(tables))
+    views = list(set(views))
     
     labeled = [f"[TABLE] {t}" for t in tables] + [f"[VIEW] {v}" for v in views]
     return sorted(labeled)
@@ -158,8 +200,9 @@ def get_table_columns_with_types_cached(table_name: str):
     try:
         # 日本語テーブル名に対応するためダブルクォーテーションで囲む
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        # 明示的にスキーマを指定
-        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
+        # テーブルのスキーマを動的に判定
+        schema = get_table_schema(table_name)
+        result = session.sql(f"DESCRIBE TABLE {schema}.{quoted_table_name}").collect()
         return [{'name': row['name'], 'type': row['type']} for row in result]
     except Exception as e:
         st.error(f"テーブル情報取得エラー ({table_name}): {str(e)}")
@@ -198,7 +241,8 @@ def get_table_descriptions_with_ai(table_name: str):
     try:
         # テーブル構造を取得
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        describe_result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
+        schema = get_table_schema(table_name)
+        describe_result = session.sql(f"DESCRIBE TABLE {schema}.{quoted_table_name}").collect()
         
         if not describe_result:
             return None
@@ -247,7 +291,8 @@ def get_table_columns_with_descriptions_cached(table_name: str):
     try:
         # 日本語テーブル名に対応するためダブルクォーテーションで囲む
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
+        schema = get_table_schema(table_name)
+        result = session.sql(f"DESCRIBE TABLE {schema}.{quoted_table_name}").collect()
         columns_with_desc = []
         
         # まずAI_GENERATE_TABLE_DESCを試行
@@ -264,7 +309,7 @@ def get_table_columns_with_descriptions_cached(table_name: str):
             sample_text = ""
             try:
                 # サンプルデータを取得（NULL以外の重複なし値を3件）
-                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {DEMO_DATA_SCHEMA}.{quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
+                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {schema}.{quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
                 sample_result = session.sql(sample_query).collect()
                 
                 if sample_result:

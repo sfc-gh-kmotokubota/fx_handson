@@ -23,9 +23,12 @@ def get_snowflake_session():
 session = get_snowflake_session()
 
 # =========================================================
-# 定数定義: デモデータのスキーマ
+# 定数定義: データスキーマ
 # =========================================================
 DEMO_DATA_SCHEMA = "bank_db.bank_schema"
+APP_DATA_SCHEMA = "application_db.application_schema"
+# 検索対象から除外するシステムテーブル
+SYSTEM_TABLES = {"STANDARD_SEARCH_OBJECTS", "ANNOUNCEMENTS"}
 
 def quote_identifier(identifier: str) -> str:
     """Snowflake識別子をクォートする"""
@@ -71,16 +74,28 @@ if 'active_tab' not in st.session_state:
 # check_table_exists関数は削除 - setup SQLで事前作成済み
 
 def get_available_tables():
+    """複数スキーマからテーブル名を取得"""
+    tables = []
     try:
         result = session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()
-        return [row['name'] for row in result]
+        tables.extend([row['name'] for row in result])
     except:
-        return []
+        pass
+    try:
+        app_result = session.sql(f"SHOW TABLES IN {APP_DATA_SCHEMA}").collect()
+        for row in app_result:
+            if row['name'] not in SYSTEM_TABLES:
+                tables.append(row['name'])
+    except:
+        pass
+    return list(set(tables))
 
 def get_table_columns(table_name: str):
     try:
         quoted_table = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table}").collect()
+        # テーブルのスキーマを動的に判定
+        schema = get_table_schema(table_name)
+        result = session.sql(f"DESCRIBE TABLE {schema}.{quoted_table}").collect()
         return [{'name': row['name'], 'type': row['type']} for row in result]
     except:
         return []
@@ -156,7 +171,8 @@ def get_table_descriptions_with_ai(table_name: str):
     # CORTEX.COMPLETEで代替実装
     try:
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        describe_result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
+        schema = get_table_schema(table_name)
+        describe_result = session.sql(f"DESCRIBE TABLE {schema}.{quoted_table_name}").collect()
         
         if not describe_result:
             return None
@@ -199,7 +215,8 @@ def get_table_columns_with_descriptions_cached(table_name: str):
     """テーブル/ビューのカラム名、データ型、AI生成説明を取得（10分キャッシュ）"""
     try:
         quoted_table_name = f'"{table_name}"' if not table_name.startswith('"') else table_name
-        result = session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table_name}").collect()
+        schema = get_table_schema(table_name)
+        result = session.sql(f"DESCRIBE TABLE {schema}.{quoted_table_name}").collect()
         columns_with_desc = []
         
         ai_descriptions = get_table_descriptions_with_ai(table_name)
@@ -213,7 +230,7 @@ def get_table_columns_with_descriptions_cached(table_name: str):
             # サンプル値を取得
             sample_text = ""
             try:
-                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {DEMO_DATA_SCHEMA}.{quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
+                sample_query = f"SELECT DISTINCT {quoted_col_name} FROM {schema}.{quoted_table_name} WHERE {quoted_col_name} IS NOT NULL LIMIT 3"
                 sample_result = session.sql(sample_query).collect()
                 
                 if sample_result:
@@ -243,16 +260,63 @@ def get_table_columns_with_descriptions_cached(table_name: str):
         return [], None
 
 @st.cache_data(ttl=300, show_spinner=False)
+def get_table_schema(table_name: str) -> str:
+    """テーブルがどのスキーマに存在するかを判定して返す"""
+    # まずbank_db.bank_schemaを確認
+    try:
+        quoted_table = f'"{table_name}"' if not table_name.startswith('"') else table_name
+        session.sql(f"DESCRIBE TABLE {DEMO_DATA_SCHEMA}.{quoted_table}").collect()
+        return DEMO_DATA_SCHEMA
+    except:
+        pass
+    # 次にapplication_db.application_schemaを確認
+    try:
+        quoted_table = f'"{table_name}"' if not table_name.startswith('"') else table_name
+        session.sql(f"DESCRIBE TABLE {APP_DATA_SCHEMA}.{quoted_table}").collect()
+        return APP_DATA_SCHEMA
+    except:
+        pass
+    return DEMO_DATA_SCHEMA  # デフォルト
+
 def get_available_relations():
-    """bank_dbスキーマ内のテーブルとビュー名を取得（5分キャッシュ）"""
+    """複数スキーマからテーブルとビュー名を取得（5分キャッシュ）"""
+    tables = []
+    views = []
+    
+    # bank_db.bank_schemaからテーブル/ビューを取得
     try:
-        tables = [row['name'] for row in session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()]
+        table_result = session.sql(f"SHOW TABLES IN {DEMO_DATA_SCHEMA}").collect()
+        tables.extend([row['name'] for row in table_result])
     except:
-        tables = []
+        pass
+    
     try:
-        views = [row['name'] for row in session.sql(f"SHOW VIEWS IN {DEMO_DATA_SCHEMA}").collect()]
+        view_result = session.sql(f"SHOW VIEWS IN {DEMO_DATA_SCHEMA}").collect()
+        views.extend([row['name'] for row in view_result])
     except:
-        views = []
+        pass
+    
+    # application_db.application_schemaからテーブル/ビューを取得（システムテーブルを除外）
+    try:
+        app_table_result = session.sql(f"SHOW TABLES IN {APP_DATA_SCHEMA}").collect()
+        for row in app_table_result:
+            table_name = row['name']
+            # システムテーブルは除外
+            if table_name not in SYSTEM_TABLES:
+                tables.append(table_name)
+    except:
+        pass
+    
+    try:
+        app_view_result = session.sql(f"SHOW VIEWS IN {APP_DATA_SCHEMA}").collect()
+        views.extend([row['name'] for row in app_view_result])
+    except:
+        pass
+    
+    # 重複を除去してラベル付け
+    tables = list(set(tables))
+    views = list(set(views))
+    
     labeled = [f"[TABLE] {t}" for t in tables] + [f"[VIEW] {v}" for v in views]
     return sorted(labeled)
 
