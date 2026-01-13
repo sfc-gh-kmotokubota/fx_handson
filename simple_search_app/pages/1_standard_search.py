@@ -403,6 +403,22 @@ def is_date_type(data_type: str) -> bool:
     
     return any(date_type in data_type_upper for date_type in date_types)
 
+def is_date_like_column(col_name: str, data_type: str) -> bool:
+    """カラムが日付データを含む可能性があるかを判定する（型とカラム名の両方をチェック）"""
+    # まずデータ型で判定
+    if is_date_type(data_type):
+        return True
+    
+    # カラム名に日付を示すキーワードが含まれている場合（VARCHAR型でも日付として扱う）
+    col_name_upper = col_name.upper()
+    date_keywords = [
+        'DATE', 'DT', '日付', '年月日', 'YMD', 'YYYYMMDD',
+        '_AT', 'CREATED', 'UPDATED', 'REGISTERED', 'TIMESTAMP',
+        '登録日', '更新日', '作成日', '開始日', '終了日', '取引日', '発生日'
+    ]
+    
+    return any(keyword in col_name_upper for keyword in date_keywords)
+
 def get_column_data_type(table_cols: list, column_name: str) -> str:
     """指定されたカラムのデータ型を取得する"""
     for col in table_cols:
@@ -543,8 +559,8 @@ with colL:
     if selected_table:
         table_cols = get_table_columns_with_types_cached(selected_table)
         
-        # 日付型カラムを抽出
-        date_columns = [col for col in table_cols if is_date_type(col['type'])]
+        # 日付型カラムを抽出（データ型とカラム名の両方でチェック）
+        date_columns = [col for col in table_cols if is_date_like_column(col['name'], col['type'])]
         
         if date_columns:
             st.info(f"📅 日付型カラムが {len(date_columns)} 件見つかりました")
@@ -618,7 +634,7 @@ with colL:
             cond_logic_op = st.selectbox("論理演算子", ["AND", "OR"], key="cond_logic_op", disabled=(len(st.session_state.where_conditions_list) == 0))
             
             # 日付型以外のカラムのみを表示
-            non_date_columns = [col for col in table_cols if not is_date_type(col['type'])]
+            non_date_columns = [col for col in table_cols if not is_date_like_column(col['name'], col['type'])]
             cond_col_name = st.selectbox("カラムを選択", [""] + sorted([c['name'] for c in non_date_columns]), key="cond_col_name")
             cond_operator = st.selectbox("演算子を選択", ["=", ">", "<", ">=", "<=", "<>", "LIKE"], key="cond_operator")
             cond_value = st.text_input("値を入力", key="cond_value")

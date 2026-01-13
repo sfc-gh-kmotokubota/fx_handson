@@ -141,6 +141,22 @@ def is_date_type(data_type: str) -> bool:
     
     return any(date_type in data_type_upper for date_type in date_types)
 
+def is_date_like_column(col_name: str, data_type: str) -> bool:
+    """カラムが日付データを含む可能性があるかを判定する（型とカラム名の両方をチェック）"""
+    # まずデータ型で判定
+    if is_date_type(data_type):
+        return True
+    
+    # カラム名に日付を示すキーワードが含まれている場合（VARCHAR型でも日付として扱う）
+    col_name_upper = col_name.upper()
+    date_keywords = [
+        'DATE', 'DT', '日付', '年月日', 'YMD', 'YYYYMMDD',
+        '_AT', 'CREATED', 'UPDATED', 'REGISTERED', 'TIMESTAMP',
+        '登録日', '更新日', '作成日', '開始日', '終了日', '取引日', '発生日'
+    ]
+    
+    return any(keyword in col_name_upper for keyword in date_keywords)
+
 def is_numeric_type(data_type: str) -> bool:
     """データ型が数値型かどうかを判定する"""
     if not data_type:
