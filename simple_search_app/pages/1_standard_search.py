@@ -362,36 +362,21 @@ def parse_relation_label(label: str) -> str:
 
 def quote_identifier(identifier: str) -> str:
     """SQL識別子（テーブル名、カラム名）を適切にクォートする"""
+    if not identifier:
+        return identifier
+    
+    # 前後の空白、改行、特殊文字をトリム
+    identifier = identifier.strip().strip('\n\r\t')
+    
     # 既にクォートされている場合はそのまま返す
     if identifier.startswith('"') and identifier.endswith('"'):
         return identifier
     
-    # 以下の場合はクォートが必要：
-    # 1. 日本語文字が含まれている
-    # 2. 大文字・小文字が混在している
-    # 3. 数字で始まる
-    # 4. 特殊文字（スペース、ハイフンなど）が含まれている
-    # 5. SQL予約語の場合
-    import re
-    
-    # 日本語文字チェック
-    has_japanese = re.search(r'[あ-んア-ンー一-龯]', identifier)
-    
-    # 特殊文字チェック（アンダースコア以外の非英数字）
-    has_special_chars = re.search(r'[^\w]', identifier)
-    
-    # 大文字・小文字混在チェック
-    has_mixed_case = identifier != identifier.upper() and identifier != identifier.lower()
-    
-    # 数字で始まるかチェック
-    starts_with_digit = identifier[0].isdigit() if identifier else False
-    
-    # いずれかの条件に該当する場合はクォート
-    if has_japanese or has_special_chars or has_mixed_case or starts_with_digit:
-        return f'"{identifier}"'
-    
-    # 英数字・アンダースコアのみの小文字の場合はクォートしない
-    return identifier
+    # 安全のため、すべての識別子をダブルクォートで囲む
+    # （CSVインジェストしたデータなど、様々なソースからのカラム名に対応）
+    # 内部のダブルクォートをエスケープ
+    escaped_identifier = identifier.replace('"', '""')
+    return f'"{escaped_identifier}"'
 
 def is_date_type(data_type: str) -> bool:
     """データ型が日付型かどうかを判定する"""

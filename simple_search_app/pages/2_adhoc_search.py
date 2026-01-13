@@ -33,8 +33,17 @@ SYSTEM_TABLES = {"STANDARD_SEARCH_OBJECTS", "ADHOC_SEARCH_OBJECTS", "ANNOUNCEMEN
 EXCLUDED_PREFIXES = ("SNOWPARK_TEMP_TABLE_",)
 
 def quote_identifier(identifier: str) -> str:
-    """Snowflake識別子をクォートする"""
-    return f'"{identifier}"'
+    """SQL識別子（テーブル名、カラム名）を適切にクォートする"""
+    if not identifier:
+        return identifier
+    # 前後の空白、改行、特殊文字をトリム
+    identifier = identifier.strip().strip('\n\r\t')
+    # 既にクォートされている場合はそのまま返す
+    if identifier.startswith('"') and identifier.endswith('"'):
+        return identifier
+    # 内部のダブルクォートをエスケープ
+    escaped_identifier = identifier.replace('"', '""')
+    return f'"{escaped_identifier}"'
 
 # セッション状態の初期化（3テーブル結合対応）
 if 'selected_table1' not in st.session_state:
@@ -111,22 +120,6 @@ def get_table_columns(table_name: str):
         return [{'name': row['name'], 'type': row['type']} for row in result]
     except:
         return []
-
-def quote_identifier(identifier: str) -> str:
-    """SQL識別子（テーブル名、カラム名）を適切にクォートする"""
-    if identifier.startswith('"') and identifier.endswith('"'):
-        return identifier
-    
-    import re
-    has_japanese = re.search(r'[あ-んア-ンー一-龯]', identifier)
-    has_special_chars = re.search(r'[^\w]', identifier)
-    has_mixed_case = identifier != identifier.upper() and identifier != identifier.lower()
-    starts_with_digit = identifier[0].isdigit() if identifier else False
-    
-    if has_japanese or has_special_chars or has_mixed_case or starts_with_digit:
-        return f'"{identifier}"'
-    
-    return identifier
 
 def is_date_type(data_type: str) -> bool:
     """データ型が日付型かどうかを判定する"""
