@@ -28,7 +28,7 @@ session = get_snowflake_session()
 DEMO_DATA_SCHEMA = "bank_db.bank_schema"
 APP_DATA_SCHEMA = "application_db.application_schema"
 # 検索対象から除外するシステムテーブル
-SYSTEM_TABLES = {"STANDARD_SEARCH_OBJECTS", "ANNOUNCEMENTS"}
+SYSTEM_TABLES = {"STANDARD_SEARCH_OBJECTS", "ADHOC_SEARCH_OBJECTS", "ANNOUNCEMENTS"}
 # 検索対象から除外するテーブル名のプレフィックス
 EXCLUDED_PREFIXES = ("SNOWPARK_TEMP_TABLE_",)
 
