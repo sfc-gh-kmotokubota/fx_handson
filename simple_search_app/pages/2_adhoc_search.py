@@ -1629,9 +1629,11 @@ st.markdown("### 📝 STEP 5: SQLプレビュー・実行")
 # 2テーブル結合モード
 if not st.session_state.enable_3table_join and st.session_state.selected_table1 and st.session_state.selected_table2 and st.session_state.join_key1 and st.session_state.join_key2:
     
-    # 2テーブルSQL生成
-    quoted_table1 = quote_identifier(st.session_state.selected_table1)
-    quoted_table2 = quote_identifier(st.session_state.selected_table2)
+    # 2テーブルSQL生成（スキーマ名を含める）
+    table1_schema = get_table_schema(st.session_state.selected_table1)
+    table2_schema = get_table_schema(st.session_state.selected_table2)
+    quoted_table1 = f"{table1_schema}.{quote_identifier(st.session_state.selected_table1)}"
+    quoted_table2 = f"{table2_schema}.{quote_identifier(st.session_state.selected_table2)}"
     quoted_key1 = quote_identifier(st.session_state.join_key1)
     quoted_key2 = quote_identifier(st.session_state.join_key2)
     
@@ -1901,10 +1903,13 @@ ON t1.{quoted_key1} = t2.{quoted_key2}"""
 elif (st.session_state.enable_3table_join and st.session_state.selected_table1 and st.session_state.selected_table2 and st.session_state.selected_table3 and 
       st.session_state.join_key1 and st.session_state.join_key2 and st.session_state.join_key3 and st.session_state.join_key2_for_join2):
     
-    # 3テーブルSQL生成
-    quoted_table1 = quote_identifier(st.session_state.selected_table1)
-    quoted_table2 = quote_identifier(st.session_state.selected_table2)
-    quoted_table3 = quote_identifier(st.session_state.selected_table3)
+    # 3テーブルSQL生成（スキーマ名を含める）
+    table1_schema = get_table_schema(st.session_state.selected_table1)
+    table2_schema = get_table_schema(st.session_state.selected_table2)
+    table3_schema = get_table_schema(st.session_state.selected_table3)
+    quoted_table1 = f"{table1_schema}.{quote_identifier(st.session_state.selected_table1)}"
+    quoted_table2 = f"{table2_schema}.{quote_identifier(st.session_state.selected_table2)}"
+    quoted_table3 = f"{table3_schema}.{quote_identifier(st.session_state.selected_table3)}"
     quoted_key1 = quote_identifier(st.session_state.join_key1)
     quoted_key2 = quote_identifier(st.session_state.join_key2)
     quoted_key3 = quote_identifier(st.session_state.join_key3)
