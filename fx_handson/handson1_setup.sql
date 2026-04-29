@@ -13,13 +13,13 @@ ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION = 'ANY_REGION';
 -- Git連携のため、API統合を作成する
 CREATE OR REPLACE API INTEGRATION git_api_integration
   API_PROVIDER = git_https_api
-  API_ALLOWED_PREFIXES = ('https://github.com/kmotokubota/')
+  API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-kmotokubota/')
   ENABLED = TRUE;
 
 -- GIT統合の作成(今は仮)
 CREATE OR REPLACE GIT REPOSITORY GIT_INTEGRATION_FOR_HANDSON
   API_INTEGRATION = git_api_integration
-  ORIGIN = 'https://github.com/kmotokubota/fx_handson.git';
+  ORIGIN = 'https://github.com/sfc-gh-kmotokubota/fx_handson.git';
 
 -- Notebookの作成
 CREATE OR REPLACE NOTEBOOK fx_handson
